@@ -42,6 +42,96 @@ SELECT supasession.set_config(max_sessions := 3);
 ```
 
 <!-- <docs> -->
+
+### Types
+
+#### supasession.enforcement_strategy
+
+Represents the strategy for enforcing session limits.
+
+- **dequeue** - Destroys the oldest session when the limit is reached.
+- **reject** - Rejects any new sessions when the limit is reached.
+
+### Tables
+
+#### supasession.config
+
+Extension configuration.
+
+- **enabled** (`BOOLEAN`) - Whether session limiting is enabled. (Default: `FALSE`)
+- **max_sessions** (`INTEGER`): Maximum number of active sessions allowed per user. (Default: `1`)
+- **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached. (Default: `dequeue`)
+
+### Functions
+
+These functions provide a convenient layer on top of [`supasession.config`](#supasessionconfig) to manage extension configuration.
+Alternatively, you can always directly query/update the [`supasession.config`](#supasessionconfig) table.
+
+#### supasession.enable()
+
+Enables session limits enforcement.
+
+```sql
+SELECT supasession.enable();
+```
+
+##### Returns:
+  - `VOID`
+
+#### supasession.disable()
+
+Disables session limits enforcement.
+
+```sql
+SELECT supasession.disable();
+```
+
+##### Returns:
+  - `VOID`
+
+#### supasession.set_config([enabled BOOLEAN], [max_sessions INTEGER], [strategy supasession.enforcement_strategy])
+
+Updates extension configuration.
+
+```sql
+SELECT supasession.set_config(max_sessions := 5);
+SELECT supasession.set_config(enabled := FALSE, strategy := 'reject');
+```
+
+##### Parameters:
+  - **enabled** (`BOOLEAN`, *optional*) - Whether session limiting is enabled
+  - **max_sessions** (`INTEGER`, *optional*) - Maximum number of active sessions allowed per user
+  - **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy), *optional*) - Enforcement strategy when the session limit is reached
+
+##### Returns:
+  - [`supasession.config`](#supasessionconfig) - Updated configuration
+
+#### supasession.get_config()
+
+Retrieves extension configuration.
+
+```sql
+SELECT supasession.get_config();
+```
+
+##### Returns:
+  - [`supasession.config`](#supasessionconfig) - Current configuration
+
+### Auth helpers
+
+Helper functions to work with sessions within [RPCs](https://docs.postgrest.org/en/stable/references/api/functions.html).
+
+#### supasession.sid()
+
+Returns the session ID from the JWT of the current request. (Analogous to `auth.uid()`)
+
+```sql
+SELECT supasession.sid() AS session_id;
+```
+
+##### Returns:
+  - `UUID|NULL` - The session ID (`auth.sessions.id`), or `NULL` if not available
+
 <!-- /<docs> -->
 
 ## Caveats
