@@ -49,8 +49,8 @@ SELECT supasession.set_config(max_sessions := 3);
 
 Represents the strategy for enforcing session limits.
 
-- **dequeue** - Destroys the oldest session when the limit is reached.
-- **reject** - Rejects any new sessions when the limit is reached.
+- **dequeue** - Destroys the oldest session when the limit is reached
+- **reject** - Rejects any new sessions when the limit is reached
 
 ### Tables
 
@@ -58,9 +58,9 @@ Represents the strategy for enforcing session limits.
 
 Extension configuration.
 
-- **enabled** (`BOOLEAN`) - Whether session limiting is enabled. (Default: `FALSE`)
-- **max_sessions** (`INTEGER`): Maximum number of active sessions allowed per user. (Default: `1`)
-- **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached. (Default: `dequeue`)
+- **enabled** (`BOOLEAN`) - Whether session limiting is enabled (Default: `FALSE`)
+- **max_sessions** (`INTEGER`): Maximum number of active sessions allowed per user (Default: `1`)
+- **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached (Default: `dequeue`)
 
 ### Functions
 
