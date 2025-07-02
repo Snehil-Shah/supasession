@@ -89,7 +89,7 @@ SELECT supasession.disable();
 ##### Returns:
   - `VOID`
 
-#### supasession.set_config([enabled BOOLEAN], [max_sessions INTEGER], [strategy supasession.enforcement_strategy])
+#### supasession.set_config( [enabled BOOLEAN], [max_sessions INTEGER], [strategy supasession.enforcement_strategy] )
 
 Updates extension configuration.
 
