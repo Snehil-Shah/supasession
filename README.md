@@ -138,6 +138,9 @@ SELECT supasession.sid() AS session_id;
 
 Some things to be aware of:
 
+- This extension intercepts the session-creation flow and not token refreshes. This means **once you enable it or change any configuration, they will only be enforced after a user signs in**. Until then, all existing sessions of said user enjoy their time even if they don't meet the set limits.
+  
+  To avoid this, it's **recommended** to destroy all existing sessions and force all users to sign-in again fresh, **if you wish to enforce the updated extension configuration right away**.
 - Just like Supabase's single-session-per-user, invalid users **won't be logged out immediately** when a new sign in occurs. A session stays active throughout the lifetime of the JWT access token and can only be invalidated once it expires. You can reduce the JWT expiry time to go against this, but Supabase doesn't recommend going below 5 minutes. To change the JWT expiration time, go to **Project Settings > JWT Keys** in your project dashboard, or set it under [`auth.jwt_expiry`](https://supabase.com/docs/guides/local-development/cli/config#auth.jwt_expiry) in `config.toml` for local instances.
 - This extension can overestimate the number of valid sessions in certain cases where sessions are invalid due to Low AALs or timeouts. This is due to such configurations (mostly Pro features) being defined in the API layer which this extension doesn't have access to. Such sessions are still cleaned up by Supabase eventually, but during that window, blocking [enforcement strategies](#supasessionenforcement_strategy) like `reject` can cause your app to reject valid login requests.
 

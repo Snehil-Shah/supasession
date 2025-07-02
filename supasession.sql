@@ -48,7 +48,7 @@ COMMENT ON TYPE supasession.enforcement_strategy IS 'Represents the strategy for
  * - **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached (Default: `dequeue`)
  */
 CREATE TABLE supasession.config (
-    version TEXT PRIMARY KEY DEFAULT '0.1.0' CHECK (version = '0.1.0'), -- this it to enforce a single row configuration
+    version TEXT PRIMARY KEY DEFAULT '0.1.2' CHECK (version = '0.1.2'), -- this it to enforce a single row configuration
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
     max_sessions INTEGER NOT NULL DEFAULT 1 CHECK (max_sessions > 0),
     strategy supasession.enforcement_strategy NOT NULL DEFAULT 'dequeue'
@@ -87,7 +87,7 @@ RETURNS void AS $$
 BEGIN
     UPDATE supasession.config
     SET enabled = TRUE
-    WHERE version = '0.1.0';
+    WHERE version = '0.1.2';
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION supasession.enable() IS 'Enables session limits enforcement';
@@ -109,13 +109,13 @@ RETURNS void AS $$
 BEGIN
     UPDATE supasession.config
     SET enabled = FALSE
-    WHERE version = '0.1.0';
+    WHERE version = '0.1.2';
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION supasession.disable() IS 'Disables session limits enforcement';
 
 /**
- * #### supasession.set_config([enabled BOOLEAN], [max_sessions INTEGER], [strategy supasession.enforcement_strategy])
+ * #### supasession.set_config( [enabled BOOLEAN], [max_sessions INTEGER], [strategy supasession.enforcement_strategy] )
  *
  * Updates extension configuration.
  *
@@ -146,7 +146,7 @@ BEGIN
         enabled = COALESCE(set_config.enabled, supasession.config.enabled),
         max_sessions = COALESCE(set_config.max_sessions, supasession.config.max_sessions),
         strategy = COALESCE(set_config.strategy, supasession.config.strategy)
-    WHERE version = '0.1.0'
+    WHERE version = '0.1.2'
     RETURNING * INTO updated_config;
 
     RETURN updated_config;
@@ -173,7 +173,7 @@ AS $$
 DECLARE
     config_record supasession.config%ROWTYPE;
 BEGIN
-    SELECT * INTO config_record FROM supasession.config WHERE version = '0.1.0';
+    SELECT * INTO config_record FROM supasession.config WHERE version = '0.1.2';
     RETURN config_record;
 END;
 $$ LANGUAGE plpgsql;
@@ -193,15 +193,14 @@ RETURNS TRIGGER
 SECURITY DEFINER -- this function needs owner privileges to manage session records
 AS $$
 DECLARE
-    config_record supasession.config%ROWTYPE;
+    config supasession.config%ROWTYPE;
     valid_session_count INTEGER;
-    oldest_session_id UUID;
 BEGIN
     -- Get configuration
-    SELECT * INTO config_record FROM supasession.config WHERE version = '0.1.0';
+    SELECT * INTO config FROM supasession.config WHERE version = '0.1.2';
 
     -- If config doesn't exist or not enabled, allow insertion
-    IF config_record IS NULL OR NOT config_record.enabled THEN
+    IF config IS NULL OR NOT config.enabled THEN
         RETURN NEW;
     END IF;
 
@@ -218,31 +217,29 @@ BEGIN
         AND (not_after IS NULL OR not_after > NOW());
 
     -- If we're within the limit, allow insertion
-    IF valid_session_count < config_record.max_sessions THEN
+    IF valid_session_count < config.max_sessions THEN
         RETURN NEW;
     END IF;
 
     -- Handle enforcement strategy when limit is exceeded
-    IF config_record.strategy = 'reject' THEN
-        RAISE EXCEPTION 'Session limit of % exceeded for user %', config_record.max_sessions, NEW.user_id;
-    ELSIF config_record.strategy = 'dequeue' THEN
-        -- Find the oldest session (by updated_at) for this user
-        SELECT id INTO oldest_session_id
-        FROM auth.sessions
-        WHERE user_id = NEW.user_id
-            AND (not_after IS NULL OR not_after > NOW())
-        ORDER BY updated_at ASC
-        FOR UPDATE SKIP LOCKED
-        LIMIT 1;
-
-        -- Delete the oldest session
-        IF oldest_session_id IS NOT NULL THEN
-            DELETE FROM auth.sessions WHERE id = oldest_session_id;
-        END IF;
+    IF config.strategy = 'reject' THEN
+        RAISE EXCEPTION 'Session limit of % exceeded for user %', config.max_sessions, NEW.user_id;
+    ELSIF config.strategy = 'dequeue' THEN
+        -- Delete the oldest sessions over the limit, for this user
+        -- NOTE: This will also delete all associated refresh tokens via cascade which is intended behavior
+        DELETE FROM auth.sessions
+        WHERE id IN (
+            SELECT id
+            FROM auth.sessions
+            WHERE user_id = NEW.user_id
+                AND (not_after IS NULL OR not_after > NOW())
+            ORDER BY updated_at ASC
+            FOR UPDATE SKIP LOCKED
+            LIMIT valid_session_count - config.max_sessions + 1 -- delete enough to make room for the new session
+        );
+        -- Finally, register the new session
+        RETURN NEW;
     END IF;
-
-    -- Unreachable code, but for safety, we return the new session
-    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION supasession._limiter() IS 'Session limit enforcer';
@@ -256,6 +253,13 @@ CREATE TRIGGER supasession_interceptor
     BEFORE INSERT ON auth.sessions
     FOR EACH ROW
     EXECUTE FUNCTION supasession._limiter();
+
+-- NOTE: Why are we enforcing session limits during sign-ins and not by blocking token refreshes? Wouldn't that be more effective?
+-- Yes, it's more effective as limits would also be enforced on existing sessions but it comes with some dirty caveats which is better to stay away from:
+-- Blocking a transaction at the DB level like is represented as a 500 internal server error by the API layer.
+-- Most well-written Supabase clients implement retry loops when refreshing tokens for server errors they deem as "retryable". This is to enable a flawless UX where a user is not randomly logged out of their session due to bad network.
+-- These 5XX errors are part of these "retryable" errors and will cause the client to retry the request. Although the server will successfully return a `BadRequest` for the retried request (because we deleted the session entry on first request) causing the client to resign, it still took two requests to get there.
+-- Some official client SDKs (js, py) more specifically only retry on 502, 503, and 504, but some (flutter) treat all 5XX as "retryable". Better to stay conservative and avoid writing brittle logic around the "token-refresh" flow.
 
 /**
  * ### Auth helpers
