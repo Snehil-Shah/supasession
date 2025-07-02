@@ -1,5 +1,5 @@
 -- Test core trigger functionality
-SELECT plan(21);
+SELECT plan(22);
 
 -- Setup: Create test users and initial configuration
 DO $$
@@ -25,6 +25,14 @@ SELECT has_function(
     '_limiter',
     ARRAY[]::TEXT[],
     'supasession._limiter function should exist'
+);
+
+SELECT is(
+    (SELECT prosecdef FROM pg_proc
+        WHERE proname = '_limiter'
+        AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'supasession')),
+    true,
+    'supasession._limiter should be SECURITY DEFINER'
 );
 
 SELECT has_trigger(

@@ -25,8 +25,8 @@ COMMENT ON SCHEMA supasession IS
  *
  * Represents the strategy for enforcing session limits.
  *
- * - **dequeue** - Destroys the oldest session when the limit is reached.
- * - **reject** - Rejects any new sessions when the limit is reached.
+ * - **dequeue** - Destroys the oldest session when the limit is reached
+ * - **reject** - Rejects any new sessions when the limit is reached
  */
 CREATE TYPE supasession.enforcement_strategy AS ENUM (
     'reject',
@@ -43,9 +43,9 @@ COMMENT ON TYPE supasession.enforcement_strategy IS 'Represents the strategy for
  *
  * Extension configuration.
  *
- * - **enabled** (`BOOLEAN`) - Whether session limiting is enabled. (Default: `FALSE`)
- * - **max_sessions** (`INTEGER`): Maximum number of active sessions allowed per user. (Default: `1`)
- * - **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached. (Default: `dequeue`)
+ * - **enabled** (`BOOLEAN`) - Whether session limiting is enabled (Default: `FALSE`)
+ * - **max_sessions** (`INTEGER`): Maximum number of active sessions allowed per user (Default: `1`)
+ * - **strategy** ([`supasession.enforcement_strategy`](#supasessionenforcement_strategy)): Enforcement strategy when the session limit is reached (Default: `dequeue`)
  */
 CREATE TABLE supasession.config (
     version TEXT PRIMARY KEY DEFAULT '0.1.0' CHECK (version = '0.1.0'), -- this it to enforce a single row configuration
@@ -189,7 +189,9 @@ COMMENT ON FUNCTION supasession.get_config() IS 'Retrieves the current extension
  * Core trigger function that enforces session limits.
  */
 CREATE FUNCTION supasession._limiter()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER -- this function needs owner privileges to manage session records
+AS $$
 DECLARE
     config_record supasession.config%ROWTYPE;
     valid_session_count INTEGER;
@@ -248,7 +250,7 @@ COMMENT ON FUNCTION supasession._limiter() IS 'Session limit enforcer';
 /**
  * (internal) #### auth.sessions.supasession_interceptor
  *
- * Trigger that calls `supasession._limiter()` before inserting into `auth.sessions`.
+ * Trigger that calls `supasession._limiter()` before registering a session into `auth.sessions`.
  */
 CREATE TRIGGER supasession_interceptor
     BEFORE INSERT ON auth.sessions

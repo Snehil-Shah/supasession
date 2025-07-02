@@ -6,7 +6,7 @@ Limit and restrict user sessions in Supabase Auth, _without the Pro Plan_.
 
 This is supposed to be an alternative to Supabase Pro's [single-session-per-user](https://supabase.com/docs/guides/auth/sessions#limiting-session-lifetime-and-number-of-allowed-sessions-per-user) feature, but more flexible and for the brokies.
 
-![banner](https://raw.githubusercontent.com/Snehil-Shah/supasession/v0.1.0/assets/banner.png)
+![banner](https://raw.githubusercontent.com/Snehil-Shah/supasession/main/assets/banner.png)
 
 ## Prerequisites
 
