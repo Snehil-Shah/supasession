@@ -1,0 +1,11 @@
+# Supabase
+.branches
+.temp
+
+# Test migrations
+migrations/*supasession_init.sql
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

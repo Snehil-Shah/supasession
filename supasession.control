@@ -1,0 +1,6 @@
+# Ref: https://www.postgresql.org/docs/current/extend-extensions.html#EXTEND-EXTENSIONS-FILES
+
+comment = 'Advanced session management for Supabase'
+default_version = '0.1.0'
+relocatable = false
+superuser = false
